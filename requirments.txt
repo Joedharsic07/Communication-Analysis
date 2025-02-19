@@ -2,3 +2,5 @@ spacy
 youtube-transcript-api
 scikit-learn
 contractions
+stramlit
+plotly

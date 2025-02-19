@@ -4,3 +4,7 @@ venv/
 *.class
 
 .env
+gemini_analysis.csv
+gemini_analysis_using_gemoni-1.5pro.csv
+app2.py
+communication.py
