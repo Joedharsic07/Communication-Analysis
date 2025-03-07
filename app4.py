@@ -1,138 +1,214 @@
-from youtube_transcript_api import YouTubeTranscriptApi
+import time
 import re
-import csv
 import os
+import csv
+import json
 import google.generativeai as genai
+from youtube_transcript_api import YouTubeTranscriptApi
 
-genai.configure(api_key="AIzaSyB20z6vCS78O4ro9eEmkEpFb9KJGOH-ws8")
+genai.configure(api_key="AIzaSyAZlyuffMEX-nrhfOHf5auy1SA75N7q2vs")  
+
+CACHE_FOLDER = "transcripts"
+os.makedirs(CACHE_FOLDER, exist_ok=True)
 
 def extract_video_id(url):
+    """Extracts the YouTube video ID from a URL."""
     match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
     return match.group(1) if match else None
 
 def get_video_transcript(video_id):
+    """Fetches or loads cached transcript with timestamps."""
+    cache_path = os.path.join(CACHE_FOLDER, f"{video_id}.json")
+    if os.path.exists(cache_path):
+        print(f"📁 Using locally stored transcript for {video_id}")
+        with open(cache_path, "r", encoding="utf-8") as file:
+            return json.load(file)
     try:
+        print(f"🌐 Fetching transcript for {video_id} from YouTube API...")
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return [(entry['start'], entry['text']) for entry in transcript]
-    except Exception:
+        with open(cache_path, "w", encoding="utf-8") as file:
+            json.dump(transcript, file, indent=4)
+
+        return transcript
+    except Exception as e:
+        print(f"❌ Error fetching transcript for {video_id}: {e}")
         return []
 
 def format_time(seconds):
-    minutes = int(seconds) // 60
-    seconds = int(seconds) % 60
-    return f"{minutes:02}:{seconds:02}"
+    """Converts time from seconds to MM:SS format."""
+    try:
+        seconds = int(float(seconds))
+        minutes = seconds // 60
+        secs = seconds % 60
+        return f"{minutes}:{secs:02d}" 
+    except ValueError:
+        return "00:00"
 
-def detect_ad_segments(transcript):
-    ad_keywords = [
-        "sponsored by", "brought to you by", "today's sponsor", "use code", 
-        "partnered with", "in collaboration with", "this video is sponsored",
-        "our sponsor", "this video is made possible by", "exclusive offer", "special discount",
-        "click the link", "limited time offer", "visit our partner", "get yours now", "sponsoring this video"
-    ]
-    
-    weak_keywords = ["check out", "special deal", "discount"]
-    
-    ad_segments = []
-    in_ad = False
-    ad_start = None
-    ad_texts = []
-    
-    for i, (start_time, sentence) in enumerate(transcript):
-        lower_sentence = sentence.lower()
-        keyword_matches = sum(1 for keyword in ad_keywords if keyword in lower_sentence)
-        weak_matches = sum(1 for keyword in weak_keywords if keyword in lower_sentence)
-        
-        if keyword_matches >= 1 or (keyword_matches + weak_matches) >= 2:
-            if not in_ad:
-                ad_start = start_time
-                ad_texts = []
-                backtrack = max(0, i - 5)
-                while backtrack < i and len(transcript[backtrack][1].split()) < 20:
-                    ad_start = transcript[backtrack][0]
-                    ad_texts.insert(0, transcript[backtrack][1])
-                    backtrack += 1
-                in_ad = True
-            ad_texts.append(sentence)
-        else:
-            if in_ad:
-                forward_check = i + 1
-                non_ad_count = 0
-                
-                while forward_check < len(transcript) and non_ad_count < 2:
-                    next_sentence = transcript[forward_check][1]
-                    if any(keyword in next_sentence.lower() for keyword in ad_keywords):
-                        ad_texts.append(next_sentence)
-                        non_ad_count = 0  
-                    else:
-                        ad_texts.append(next_sentence)
-                        non_ad_count += 1 
-                    forward_check += 1
-                
-                ad_segments.append((ad_start, transcript[min(forward_check, len(transcript) - 1)][0], " ".join(ad_texts)))
-                in_ad = False
-    
-    return ad_segments
+def convert_timestamp(timestamp):
+    """Ensures timestamp is in MM:SS format."""
+    if isinstance(timestamp, str) and re.match(r"^\d+:\d{2}$", timestamp):
+        return timestamp 
+    return format_time(timestamp)  
 
-def extract_product_name_gemini(ad_text):
+def analyze_sponsorship(transcript, influencer_name, expected_product, video_url):
+    """Detect sponsorship mention, timestamps, product validation, and ad quality scoring."""
+
+    transcript_formatted = "\n".join(
+        f"[{format_time(entry['start'])}] {entry['text']}" for entry in transcript
+    )
+
     prompt = f"""
-    Identify the main product, brand, or sponsor being promoted in the following advertisement text:
-    "{ad_text}"
-    
-    Return only the name of the product, brand, or sponsor without additional explanations.
-    If no clear product or brand is mentioned, return 'Unknown'.
-    """
-    
-    response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
-    return response.text.strip() if response else "Unknown"
+You are an AI expert in advertisement analysis. Analyze the transcript of an influencer's video to extract ad details and evaluate the ad's quality.
 
-def process_videos(video_urls):
+### **Video Details:**  
+- **Influencer Name:** {influencer_name}  
+- **Video URL:** {video_url}
+- **Transcript (with timestamps):**  
+{transcript_formatted}  
+
+### **Instructions:**  
+1. **Extract the advertisement section**, including:  
+   - **Exact ad text** as spoken in the video.  
+   - **Start & end timestamps** (in MM:SS format).  
+2. **Detect the promoted product**, including:  
+   - **Product name & model (if mentioned)**  
+3. **Validate against the expected product:**  
+   - **Expected Product:** {expected_product}  
+   - **Extracted Product:** AI-detected product  
+   - **Match Accuracy:** "Yes" if extracted product matches expected product, otherwise "No".  
+   - **Inference:** Explanation of why the match was successful or not.  
+4. **Evaluate the advertisement quality** based on these metrics (score 1-10):  
+   - **Ad Naturalness**: How smoothly the ad is integrated into the video.  
+   - **Persuasiveness**: How convincing the ad is in making viewers interested.  
+   - **Trustworthiness**: Does the influencer genuinely sound like they believe in the product?  
+   - **Ad Length & Placement**: Was the ad length appropriate and positioned naturally?  
+   - **Engagement**: Did the influencer make the ad engaging, conversational, or interactive?  
+5. **Classify the advertisement as:**  
+   - **Good** (8-10 average)  
+   - **Moderate** (5-7 average)  
+   - **Bad** (1-4 average)  
+
+### **Expected JSON Output:**  
+{{
+  "influencer_name": "{influencer_name}",
+  "video_url": "{video_url}",
+  "advertisement_text": "Extracted ad mention",
+  "product_name": "AI-detected product",
+  "start_time": "MM:SS",
+  "end_time": "MM:SS",
+  "expected_product": "{expected_product}", 
+  "match_accuracy": "Yes/No",
+  "inference": "Reasoning for match or mismatch",
+  "ad_naturalness": 0-10,
+  "persuasiveness": 0-10,
+  "trustworthiness": 0-10,
+  "ad_length_placement": 0-10,
+  "engagement": 0-10,
+  "ad_classification": "Good/Moderate/Bad"
+}}
+
+If **no advertisement** is found, return:  
+{{
+  "advertisement_text": "No Advertisement Found"
+}}
+
+Ensure the response is in **valid JSON format**.
+"""
+
+    try:
+        time.sleep(4) 
+        response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
+        clean_text = response.text.strip().strip("```json").strip("```").strip()
+        sponsorship_data = json.loads(clean_text)
+
+        if sponsorship_data.get("advertisement_text") == "No Advertisement Found":
+            return None
+        sponsorship_data["start_time"] = convert_timestamp(sponsorship_data["start_time"])
+        sponsorship_data["end_time"] = convert_timestamp(sponsorship_data["end_time"])
+
+        return sponsorship_data
+    except json.JSONDecodeError as e:
+        print(f"⚠️ JSON Error: {e} - LLM Response: {response.text}")
+        return None
+    except Exception as e:
+        print(f"LLM Error: {e}")
+        return None
+
+def process_videos(video_data):
+    """Processes multiple videos and extracts sponsorship details."""
     results = []
-    for url in video_urls:
+    for index, data in enumerate(video_data):
+        url = data["video_url"]
+        influencer_name = data["influencer_name"]
+        expected_product = data["expected_product"]
+
         video_id = extract_video_id(url)
         if not video_id:
             print(f"Invalid URL: {url}")
             continue
-        
+
         transcript = get_video_transcript(video_id)
         if not transcript:
             print(f"No transcript available for: {url}")
             continue
-        
-        ad_segments = detect_ad_segments(transcript)
-        for start_time, end_time, ad_text in ad_segments:
-            product_name = extract_product_name_gemini(ad_text)
-            results.append({
-                "video_url": url,
-                "start_time": format_time(start_time),
-                "end_time": format_time(end_time),
-                "ad_text": ad_text,
-                "product": product_name
-            })
-        
+
+        sponsorship_section = analyze_sponsorship(transcript, influencer_name, expected_product, url)
+        if sponsorship_section:
+            results.append(sponsorship_section)
+
         print(f"Processed {url}")
+
+        if index < len(video_data) - 1:
+            wait_time = 5 
+            print(f"Waiting {wait_time} seconds before next request...")
+            time.sleep(wait_time)
+
     return results
 
-def save_results_to_csv(results, filename="ad_experience_analysis.csv"):
+def save_results_to_csv(results, filename="sponsorship_analysis.csv"):
+    """Save results to CSV including timestamps, product name, and quality scores."""
     with open(filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerow(["Video URL", "Start Time", "End Time", "Ad Text", "Product"])
+        writer.writerow([
+            "Influencer Name", "Video URL", "Advertisement Text", "Product", 
+            "Start Time", "End Time", "Expected Product", "Match", "Inference", 
+            "Ad Naturalness", "Persuasiveness", "Trustworthiness", "Ad Length & Placement", "Engagement", "Ad Classification"
+        ])
         for entry in results:
-            writer.writerow([entry['video_url'], entry['start_time'], entry['end_time'], entry['ad_text'], entry['product']])
+            writer.writerow([
+                entry['influencer_name'], entry['video_url'], entry['advertisement_text'], entry['product_name'],
+                entry['start_time'], entry['end_time'], entry['expected_product'], entry['match_accuracy'], entry['inference'],
+                entry['ad_naturalness'], entry['persuasiveness'], entry['trustworthiness'], 
+                entry['ad_length_placement'], entry['engagement'], entry['ad_classification']
+            ])
     print(f"Results saved to {filename}")
-
-youtube_urls = [
-    "https://www.youtube.com/watch?v=qWMK16uYQbU",
-    "https://www.youtube.com/watch?v=c_DOG_mXz5w",
-    "https://www.youtube.com/watch?v=VpN78TXMSUM",
-    "https://www.youtube.com/watch?v=Qc6pdR8BhFA",
-    "https://www.youtube.com/watch?v=eJgcxYMhdoU",
-    "https://www.youtube.com/watch?v=NWfIrmIgaCU",
-    "https://www.youtube.com/watch?v=RlzV8EnEwc0&t=416s",
-    "https://www.youtube.com/watch?v=U7JNdMbj1zM",
-    "https://www.youtube.com/watch?v=qh75NllzOlU",
-    "https://www.youtube.com/watch?v=dPOX5SxcWUo",
+video_data = [
+    {"video_url": "https://www.youtube.com/watch?v=qWMK16uYQbU", "influencer_name": "Ali Abdaal", "expected_product": "trading 212"},
+    {"video_url": "https://www.youtube.com/watch?v=c_DOG_mXz5w", "influencer_name": "Ali Abdaal", "expected_product": "trading 212"},
+    {"video_url": "https://www.youtube.com/watch?v=VpN78TXMSUM", "influencer_name": "Ali Abdaal", "expected_product": "BetterHelp"},
+    {"video_url": "https://www.youtube.com/watch?v=Qc6pdR8BhFA", "influencer_name": "Ali Abdaal", "expected_product": "Shopify"},
+    {"video_url": "https://www.youtube.com/watch?v=eJgcxYMhdoU", "influencer_name": "Ali Abdaal", "expected_product": "reclaim"},
+    {"video_url": "https://www.youtube.com/watch?v=19_sGcrsWhg", "influencer_name": "The Diary Of A CEO", "expected_product": "Perfect Ted"},
+    {"video_url": "https://www.youtube.com/watch?v=FjrJ2DJN_pA", "influencer_name": "The Diary Of A CEO", "expected_product": "Vanta"},
+    {"video_url": "https://www.youtube.com/watch?v=eOnIWDMNyfE", "influencer_name": "The Diary Of A CEO", "expected_product": "Zoe"},
+    {"video_url": "https://www.youtube.com/watch?v=rDyTyppGxSg", "influencer_name": "The Diary Of A CEO", "expected_product": "Perfect Ted"},
+    {"video_url": "https://www.youtube.com/watch?v=LiIs5X56JMI", "influencer_name": "The Diary Of A CEO", "expected_product": "Linkedin"},
+    {"video_url": "https://www.youtube.com/watch?v=4_5Smu0YAxw", "influencer_name": "Think School", "expected_product": "axis max life insurance"},
+    {"video_url": "https://www.youtube.com/watch?v=aGVtLubW9q0", "influencer_name": "Think School", "expected_product": "GoldenPi"},
+    {"video_url": "https://www.youtube.com/watch?v=I7vz7Ym82_4", "influencer_name": "Think School", "expected_product": "wind wealth"},
+    {"video_url": "https://www.youtube.com/watch?v=G7Jyzj1FpnU", "influencer_name": "Think School", "expected_product": "Odoo"},
+    {"video_url": "https://www.youtube.com/watch?v=FoQR9rLpRy8", "influencer_name": "Think School", "expected_product": "Scaler school of business"},
+    {"video_url": "https://www.youtube.com/watch?v=Uhbf9oJ9NCs", "influencer_name": "Hyram Yarbro", "expected_product": "Stylevana"},
+    {"video_url": "https://www.youtube.com/watch?v=V4GLqNOIysw", "influencer_name": "Hyram Yarbro", "expected_product": "Nira"},
+    {"video_url": "https://www.youtube.com/watch?v=xKDKdIZC_j8", "influencer_name": "Hyram Yarbro", "expected_product": "iHerb"},
+    {"video_url": "https://www.youtube.com/watch?v=mUtrucc4cq8", "influencer_name": "Hyram Yarbro", "expected_product": "Credo Beauty"},
+    {"video_url": "https://www.youtube.com/watch?v=6zpEBAnYf4g", "influencer_name": "Hyram Yarbro", "expected_product": "Stylevana"},
+    {"video_url": "https://www.youtube.com/watch?v=mcDB4pqLhfI", "influencer_name": "Bethany Mota", "expected_product": "Thredup"},
+    {"video_url": "https://www.youtube.com/watch?v=yzsEnpnI-vA", "influencer_name": "Bethany Mota", "expected_product": "YouTube"},
+    {"video_url": "https://www.youtube.com/watch?v=Xenj_fx4w2E", "influencer_name": "Bethany Mota", "expected_product": "Thredup"},
+    {"video_url": "https://www.youtube.com/watch?v=yeWH2hxsB8Y", "influencer_name": "Bethany Mota", "expected_product": " CVS Pharmacy"},
+    {"video_url": "https://www.youtube.com/watch?v=CVLEXwppll8", "influencer_name": "Bethany Mota", "expected_product": "Thredup"},
 ]
-
-results = process_videos(youtube_urls)
+results = process_videos(video_data)
 save_results_to_csv(results)
-print("Ad detection completed.")
+print("✅ Sponsorship extraction completed.")
