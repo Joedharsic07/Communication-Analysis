@@ -12,12 +12,10 @@ CACHE_FOLDER = "transcripts"
 os.makedirs(CACHE_FOLDER, exist_ok=True)
 
 def extract_video_id(url):
-    """Extracts the YouTube video ID from a URL."""
     match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
     return match.group(1) if match else None
 
 def get_video_transcript(video_id):
-    """Fetches or loads cached transcript with timestamps."""
     cache_path = os.path.join(CACHE_FOLDER, f"{video_id}.json")
     if os.path.exists(cache_path):
         print(f"📁 Using locally stored transcript for {video_id}")
@@ -35,7 +33,6 @@ def get_video_transcript(video_id):
         return []
 
 def format_time(seconds):
-    """Converts time from seconds to MM:SS format."""
     try:
         seconds = int(float(seconds))
         minutes = seconds // 60
@@ -45,14 +42,11 @@ def format_time(seconds):
         return "00:00"
 
 def convert_timestamp(timestamp):
-    """Ensures timestamp is in MM:SS format."""
     if isinstance(timestamp, str) and re.match(r"^\d+:\d{2}$", timestamp):
         return timestamp 
     return format_time(timestamp)  
 
 def analyze_sponsorship(transcript, influencer_name, expected_product, video_url):
-    """Detect sponsorship mention, timestamps, product validation, and ad quality scoring."""
-
     transcript_formatted = "\n".join(
         f"[{format_time(entry['start'])}] {entry['text']}" for entry in transcript
     )
@@ -135,7 +129,6 @@ Ensure the response is in **valid JSON format**.
         return None
 
 def process_videos(video_data):
-    """Processes multiple videos and extracts sponsorship details."""
     results = []
     for index, data in enumerate(video_data):
         url = data["video_url"]
@@ -166,7 +159,6 @@ def process_videos(video_data):
     return results
 
 def save_results_to_csv(results, filename="sponsorship_analysis.csv"):
-    """Save results to CSV including timestamps, product name, and quality scores."""
     with open(filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow([
