@@ -3,10 +3,17 @@ import re
 import os
 import csv
 import json
+from dotenv import load_dotenv 
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
 
-genai.configure(api_key="AIzaSyAZlyuffMEX-nrhfOHf5auy1SA75N7q2vs")  
+load_dotenv()  
+api_key = os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    raise ValueError("❌ API key missing! Set GEMINI_API_KEY in environment variables.")
+
+genai.configure(api_key=api_key)  
 
 CACHE_FOLDER = "transcripts"
 os.makedirs(CACHE_FOLDER, exist_ok=True)
@@ -111,7 +118,7 @@ Ensure the response is in **valid JSON format**.
 
     try:
         time.sleep(4) 
-        response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
+        response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt, generation_config={"temperature": 0} )
         clean_text = response.text.strip().strip("```json").strip("```").strip()
         sponsorship_data = json.loads(clean_text)
 

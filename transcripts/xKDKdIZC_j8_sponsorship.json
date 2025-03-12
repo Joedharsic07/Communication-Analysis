@@ -1,0 +1,17 @@
+{
+    "influencer_name": "Hyram Yarbro",
+    "video_url": "https://www.youtube.com/watch?v=xKDKdIZC_j8",
+    "advertisement_text": "I also want to say that the product links for this video have been sponsored by iHerb. I chose all the products myself, I had full control over them, but if you aren't familiar with iHerb, they are an incredible website with one of the biggest selections of Korean skincare products in the USA that I've ever seen. Like their selection is truly amazing. Some of the products they have are like brand new, released in Korea, but they also have so many different types of beauty and health products like supplements, hair care, protein powder, like they have it all. So if you want to get any of the products that I'm talking about in today's video, all of the iHerb links will be listed down below. And thank you iHerb for sponsoring the links in this video.",
+    "product_name": "iHerb",
+    "start_time": "1:08",
+    "end_time": "1:40",
+    "expected_product": "iHerb",
+    "match_accuracy": "Yes",
+    "inference": "The influencer explicitly mentions iHerb as the sponsor and provides a clear call to action to check out their website for the products featured in the video.",
+    "ad_naturalness": 8,
+    "persuasiveness": 7,
+    "trustworthiness": 9,
+    "ad_length_placement": 7,
+    "engagement": 6,
+    "ad_classification": "Moderate"
+}

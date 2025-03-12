@@ -1,0 +1,17 @@
+{
+    "influencer_name": "The Diary Of A CEO",
+    "video_url": "https://www.youtube.com/watch?v=eOnIWDMNyfE",
+    "advertisement_text": "I was so impressed by Professor Tim Spectre and Professor Sarah Berry that I ended up investing in Zoe and they're now a sponsor of this podcast. They help me to view my gut as the gateway to Better Health that when in balance my microbiome could strengthen my immunity, elevate my mood and fight off disease, which I now know to be true. I trust Zoe because they have one of the largest microbiome databases in the world and when you sign up you'll get one of the most scientifically Advanced atome test kits on the planet and a personalized nutrition program to help you make smarter food choices and because you're one of my listeners use code Steven 10 for 10% off your membership head to zoe.com now.",
+    "product_name": "Zoe",
+    "start_time": "116:14",
+    "end_time": "116:52",
+    "expected_product": "Zoe",
+    "match_accuracy": "Yes",
+    "inference": "The ad explicitly mentions Zoe and provides a discount code and website URL, clearly indicating the product being advertised.",
+    "ad_naturalness": 8,
+    "persuasiveness": 7,
+    "trustworthiness": 9,
+    "ad_length_placement": 7,
+    "engagement": 6,
+    "ad_classification": "Good"
+}

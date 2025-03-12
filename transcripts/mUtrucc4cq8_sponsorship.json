@@ -1,0 +1,17 @@
+{
+    "influencer_name": "Hyram Yarbro",
+    "video_url": "https://www.youtube.com/watch?v=mUtrucc4cq8",
+    "advertisement_text": "Credo Beauty has also sponsored the links on this YouTube video. I chose all my own products. I've been wanting to test these for a while, but if you're interested in getting any of these, all the product links will be in the description box below and be sure to check out Credo Beauty because they have a huge selection of high-quality skincare, makeup, face tools, a bunch of good stuff on their website. So thank you Credo for sponsoring the links.",
+    "product_name": "Credo Beauty",
+    "start_time": "00:34",
+    "end_time": "00:55",
+    "expected_product": "Credo Beauty",
+    "match_accuracy": "Yes",
+    "inference": "The influencer explicitly mentions Credo Beauty as the sponsor and directs viewers to their website for product links.",
+    "ad_naturalness": 8,
+    "persuasiveness": 7,
+    "trustworthiness": 9,
+    "ad_length_placement": 7,
+    "engagement": 6,
+    "ad_classification": "Moderate"
+}

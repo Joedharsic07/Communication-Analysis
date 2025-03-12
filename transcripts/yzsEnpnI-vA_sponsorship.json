@@ -1,0 +1,17 @@
+{
+    "influencer_name": "Bethany Mota",
+    "video_url": "https://www.youtube.com/watch?v=yzsEnpnI-vA",
+    "advertisement_text": "huge thank you to YouTube for sponsoring this video",
+    "product_name": "YouTube",
+    "start_time": "00:04",
+    "end_time": "00:07",
+    "expected_product": "YouTube",
+    "match_accuracy": "Yes",
+    "inference": "The influencer explicitly thanks YouTube for sponsoring the video.  The mention is clear and unambiguous.",
+    "ad_naturalness": 9,
+    "persuasiveness": 6,
+    "trustworthiness": 10,
+    "ad_length_placement": 9,
+    "engagement": 7,
+    "ad_classification": "Good"
+}
