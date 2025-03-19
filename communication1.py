@@ -173,213 +173,192 @@ def get_gemini_suggestions(transcript_text):
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
-        
         .title { font-size: 50px !important; font-weight: bold; }
         .subtitle { font-size: 35px !important; font-weight: bold; }
         .metric-label { font-size: 35px !important;}
         .metric-value { font-size: 40px !important;}
+        /* Reduce font size of metric values */
+    div[data-testid="stMetricValue"] {
+        font-size: 22px !important;
+    }
+
+    /* Reduce font size of metric labels */
+    div[data-testid="stMetricLabel"] {
+        font-size: 16px !important;
+    }
+
+    /* Adjust sentiment text */
+    .overall-sentiment {
+        font-size: 18px;
+        font-weight: bold;
+    }
     </style>
 """, unsafe_allow_html=True)
+
 st.markdown('<p class="title">🎙️ Speaker Analysis Dashboard</p>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle">Analyze speech patterns and improve communication effectiveness</p>', unsafe_allow_html=True)
 
+# LINKS INPUT
 container = st.container(border=True)  
 with container:
     urls_input = st.text_area("Enter YouTube URLs (one per line):", height=150)
     urls = [url.strip() for url in urls_input.split("\n") if url.strip()]
 
 if st.button("Analyze"):
-    container = st.container(border=True)  
-    with container:
-        all_transcripts = []
-        total_duration_seconds = 0  
-        invalid_urls = []
+    all_transcripts = []
+    total_duration_seconds = 0  
+    invalid_urls = []
 
-        with st.spinner("Fetching transcripts..."):
-            for url in urls:
-                video_id = extract_video_id(url)
-                if video_id:
-                    transcript_text, duration = get_youtube_transcript(video_id)
-                    if transcript_text:
-                        all_transcripts.append(transcript_text)
-                        total_duration_seconds += duration  
-                    else:
-                        invalid_urls.append(url)
+    with st.spinner("Fetching transcripts..."):
+        for url in urls:
+            video_id = extract_video_id(url)
+            if video_id:
+                transcript_text, duration = get_youtube_transcript(video_id)
+                if transcript_text:
+                    all_transcripts.append(transcript_text)
+                    total_duration_seconds += duration  
                 else:
                     invalid_urls.append(url)
+            else:
+                invalid_urls.append(url)
 
-        if invalid_urls:
-            st.warning(f"⚠️ Invalid or missing transcripts for: {', '.join(invalid_urls)}")
+    if invalid_urls:
+        st.warning(f"⚠️ Invalid or missing transcripts for: {', '.join(invalid_urls)}")
 
-        if not all_transcripts:
-            st.error("❌ No valid YouTube transcripts found.")
-        else:
-            combined_text = preprocess_text(" ".join(all_transcripts))
+    if not all_transcripts:
+        st.error("❌ No valid YouTube transcripts found.")
+    else:
+        combined_text = preprocess_text(" ".join(all_transcripts))
 
-            with st.spinner("Computing speech metrics..."):
-                total_words, unique_words, filler_percentage, speaking_pace = compute_speech_metrics(combined_text, total_duration_seconds)
+        # --- Compute Speech Metrics ---
+        with st.spinner("Computing speech metrics..."):
+            total_words, unique_words, filler_percentage, speaking_pace = compute_speech_metrics(combined_text, total_duration_seconds)
 
-            with st.spinner("Extracting key insights..."):
-                most_used_words = extract_most_used_words(combined_text)
-                filler_words = extract_fillers(combined_text)
-                two_word_fillers, three_word_fillers = extract_filler_phrases(combined_text)
+        # --- Extract Insights ---
+        with st.spinner("Extracting key insights..."):
+            most_used_words = extract_most_used_words(combined_text)
+            filler_words = extract_fillers(combined_text)
+            two_word_fillers, three_word_fillers = extract_filler_phrases(combined_text)
 
+        # --- Word Analysis & Sentiment Analysis ---
+        container = st.container(border=True)
+        container = st.container(border=True)
+        with st.container():
+            col1, col2 = st.columns(2)  # Two equal-width columns
+
+            # --- Word Analysis ---
+            with col1:
+                st.subheader("📊 Word Analysis")
+                col_w1, col_w2, col_w3, col_w4 = st.columns([1.5, 1.5, 1, 2])  # Adjusted column widths
+
+                col_w1.metric("Total Words", total_words)
+                col_w2.metric("Unique Words", unique_words)
+                col_w3.metric("Filler Word %", f"{filler_percentage}%")
+                col_w4.metric("Speaking Pace", f"{speaking_pace} wpm")
+
+            # --- Sentiment Analysis ---
+            with col2:
+                st.subheader("📊 Sentiment Analysis")
+                sentiment_scores = analyze_sentiment(combined_text)
+                sentiment_results = categorize_sentiment(sentiment_scores)
+
+                # Styled sentiment display
+                st.markdown(f"""
+                <p class="overall-sentiment">
+                    Overall Sentiment: <span style="color:green;">{sentiment_results['Label']} ({round(sentiment_results['Overall Sentiment'], 2)})</span>
+                </p>
+                """, unsafe_allow_html=True)
+
+                col_s1, col_s2, col_s3 = st.columns([1.5, 1.5, 1])  # Adjusted column widths
+                col_s1.metric("😊 Positive", f"{sentiment_results['Positive']}%")
+                col_s2.metric("😐 Neutral", f"{sentiment_results['Neutral']}%")
+                col_s3.metric("😢 Negative", f"{sentiment_results['Negative']}%")
+
+        # --- Graphs Section ---
+        container = st.container(border=True)
+        with container:
+            st.subheader("📊 Word Usage & Speech Patterns")
+            col_g1, col_g2, col_g3, col_g4 = st.columns(4)
+
+            def plot_bar_chart(data, title, color):
+                df = pd.DataFrame(data, columns=["Word", "Count"])
+                fig = px.bar(df, x="Word", y="Count", title=title, color="Count", color_continuous_scale=color)
+                st.plotly_chart(fig, use_container_width=True)
+
+            with col_g1:
+                plot_bar_chart(most_used_words, "Most Used Words", "blues")
+            with col_g2:
+                plot_bar_chart(filler_words, "Filler Words", "reds")
+            with col_g3:
+                plot_bar_chart(two_word_fillers, "2-Word Filler Phrases", "purples")
+            with col_g4:
+                plot_bar_chart(three_word_fillers, "3-Word Filler Phrases", "pinkyl")
+
+
+        # --- Speaker Focus Topics ---
+        container = st.container(border=True)
+        with st.spinner("Extracting focused topics..."):
             container = st.container(border=True)  
             with container:
-                col1, col2, col3, col4, col5 = st.columns(5)
+                focused_topics = extract_focused_topics(preprocess_text(combined_text), top_n=10)
+                st.subheader("🎯 Speaker's Focused Topics")
 
-                col1.markdown(f'<p class="metric-label">Total Words</p>', unsafe_allow_html=True)
-                col1.markdown(f'<p class="metric-value">{total_words}</p>', unsafe_allow_html=True)
+                st.markdown(
+                    """
+                    <style>
+                        .circle-container {
+                            display: flex;
+                            flex-wrap: nowrap;
+                            gap: 20px;
+                            justify-content: flex-start;
+                            align-items: center;
+                            margin-top: 20px;
+                            overflow-x: auto;
+                            white-space: nowrap;
+                            padding: 10px;
+                        }
+                        .topic-bubble {
+                            min-width: 140px;
+                            height: 140px;
+                            font-weight: bold;
+                            font-size: 14px;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            text-align: center;
+                            border-radius: 50%;
+                            padding: 15px;
+                            word-wrap: break-word;
+                            overflow-wrap: break-word;
+                            white-space: normal;
+                            text-overflow: ellipsis;
+                        }
+                        /* Gradient background effect for 10 bubbles */
+                        .topic-bubble:nth-child(1) { background: linear-gradient(to bottom, #A569BD, #D2B4DE); color: #4A148C; } /* Purple */
+                        .topic-bubble:nth-child(2) { background: linear-gradient(to bottom, #5499C7, #AED6F1); color: #1A5276; } /* Blue */
+                        .topic-bubble:nth-child(3) { background: linear-gradient(to bottom, #48C9B0, #A2D9CE); color: #0B5345; } /* Green */
+                        .topic-bubble:nth-child(4) { background: linear-gradient(to bottom, #F5B041, #FAD7A0); color: #935116; } /* Orange */
+                        .topic-bubble:nth-child(5) { background: linear-gradient(to bottom, #EC7063, #F5B7B1); color: #7B241C; } /* Red */
+                        .topic-bubble:nth-child(6) { background: linear-gradient(to bottom, #F1948A, #FADBD8); color: #78281F; } /* Soft Red */
+                        .topic-bubble:nth-child(7) { background: linear-gradient(to bottom, #BB8FCE, #D7BDE2); color: #512E5F; } /* Light Purple */
+                        .topic-bubble:nth-child(8) { background: linear-gradient(to bottom, #D4E6F1, #EBF5FB); color: #154360; } /* Light Blue */
+                        .topic-bubble:nth-child(9) { background: linear-gradient(to bottom, #82E0AA, #D5F5E3); color: #186A3B; } /* Light Green */
+                        .topic-bubble:nth-child(10) { background: linear-gradient(to bottom, #F8C471, #FAE5D3); color: #935116; } /* Yellow-Orange */
+                    </style>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-                col2.markdown(f'<p class="metric-label">Unique Words</p>', unsafe_allow_html=True)
-                col2.markdown(f'<p class="metric-value">{unique_words}</p>', unsafe_allow_html=True)
 
-                col3.markdown(f'<p class="metric-label">Filler Word %</p>', unsafe_allow_html=True)
-                col3.markdown(f'<p class="metric-value">{filler_percentage}%</p>', unsafe_allow_html=True)
+            topic_html = '<div class="circle-container">'
+            for topic, _ in focused_topics:
+                topic_html += f'<div class="topic-bubble">{topic}</div>'
+            topic_html += "</div>"
+            st.markdown(topic_html, unsafe_allow_html=True)
 
-                col4.markdown(f'<p class="metric-label">Speaking Pace</p>', unsafe_allow_html=True)
-                col4.markdown(f'<p class="metric-value">{speaking_pace} wpm</p>', unsafe_allow_html=True)
-
-                col5.markdown(f'<p class="metric-label">Speech Duration</p>', unsafe_allow_html=True)
-                col5.markdown(f'<p class="metric-value">{int(total_duration_seconds//60)}:{int(total_duration_seconds%60)}</p>', unsafe_allow_html=True)
-
-            with st.spinner("Plotting most used words and filler words..."):
-                container = st.container(border=True)  
-                with container:
-                    def plot_bar_chart(data, title, color):
-                        df = pd.DataFrame(data, columns=["Word", "Count"])
-                        
-                        # Define color scales for different categories
-                        color_scales = {
-                                    "blues": [(0, "#6FA3E5"), (1, "#2A6EBB")],   # Most Used Words (Darker blues)
-                                    "reds": [(0, "#F08080"), (1, "#D32F2F")],    # Filler Words (Darker reds)
-                                    "greens": [(0, "#81C784"), (1, "#2E7D32")],  # Non-Filler Words (Darker greens)
-                                    "purples": [(0, "#B39DDB"), (1, "#673AB7")], # 2-Word Filler Phrases (Darker purples)
-                                    "pinks": [[0, "#F48FB1"], [1, "#C2185B"]],   # 3-Word Filler Phrases (Darker pinks)
-                                }
-                        
-                        chosen_color_scale = color_scales.get(color, "blues")  # Default to blue if undefined
-
-                        fig = px.bar(df, x="Word", y="Count", title=title, color="Count", 
-                                    color_continuous_scale=chosen_color_scale)
-
-                        fig.update_layout(
-                            font=dict(size=22),  
-                            title=dict(font=dict(size=28)),  
-                            xaxis=dict(
-                                tickangle=-45,
-                                title_font=dict(size=24),
-                                tickfont=dict(size=20),
-                                automargin=True  
-                            ),
-                            yaxis=dict(title_font=dict(size=24), tickfont=dict(size=20)),
-                            coloraxis_colorbar=dict(title_font=dict(size=22))
-                        )
-
-                        st.plotly_chart(fig, use_container_width=True)
-
-                    # Call the function with appropriate colors
-                    st.subheader("📊 Most Used Words & Filler Words")
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        plot_bar_chart(most_used_words, "Most Used Words", "blues")
-                    with col2:
-                        plot_bar_chart(filler_words, "Filler Words", "reds")
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        plot_bar_chart(two_word_fillers, "2-Word Filler Phrases", "purples")
-                    with col2:
-                        plot_bar_chart(three_word_fillers, "3-Word Filler Phrases", "pinks")
-
-            with st.spinner("Analyzing sentiment..."):
-                container = st.container(border=True)  
-                with container:
-                    sentiment_scores = analyze_sentiment(combined_text)
-                    sentiment_results = categorize_sentiment(sentiment_scores)
-                    sentiment_segments = extract_sentiment_segments(sentiment_scores)
-
-                    st.subheader("📊 Sentiment Analysis")
-
-                    st.markdown(f"**Overall Sentiment: `{sentiment_results['Label']} ({round(sentiment_results['Overall Sentiment'], 2)})`**")
-
-                    col1, col2, col3 = st.columns(3)
-                    col1.metric("😊 Positive", f"{sentiment_results['Positive']}%")
-                    col2.metric("😐 Neutral", f"{sentiment_results['Neutral']}%")
-                    col3.metric("😢 Negative", f"{sentiment_results['Negative']}%")
-
-                    sentiment_df = pd.DataFrame({
-                        "Sentence Index": range(len(sentiment_scores)), 
-                        "Sentiment Score": [score for _, score in sentiment_scores]
-                    })
-                    fig = px.line(sentiment_df, x="Sentence Index", y="Sentiment Score", 
-                                title="Sentiment Trend Over Time", markers=True)
-                    fig.update_traces(line=dict(color="blue", width=2))
-                    st.plotly_chart(fig, use_container_width=True)
-
-            with st.spinner("Extracting focused topics..."):
-                container = st.container(border=True)  
-                with container:
-                    focused_topics = extract_focused_topics(preprocess_text(combined_text), top_n=10)
-                    st.subheader("🎯 Speaker's Focused Topics")
-
-                    st.markdown(
-                        """
-                        <style>
-                            .circle-container {
-                                display: flex;
-                                flex-wrap: nowrap;
-                                gap: 20px;
-                                justify-content: flex-start;
-                                align-items: center;
-                                margin-top: 20px;
-                                overflow-x: auto;
-                                white-space: nowrap;
-                                padding: 10px;
-                            }
-                            .topic-bubble {
-                                min-width: 140px;
-                                height: 140px;
-                                font-weight: bold;
-                                font-size: 14px;
-                                display: flex;
-                                justify-content: center;
-                                align-items: center;
-                                text-align: center;
-                                border-radius: 50%;
-                                padding: 15px;
-                                word-wrap: break-word;
-                                overflow-wrap: break-word;
-                                white-space: normal;
-                                text-overflow: ellipsis;
-                            }
-                            /* Gradient background effect for 10 bubbles */
-                            .topic-bubble:nth-child(1) { background: linear-gradient(to bottom, #A569BD, #D2B4DE); color: #4A148C; } /* Purple */
-                            .topic-bubble:nth-child(2) { background: linear-gradient(to bottom, #5499C7, #AED6F1); color: #1A5276; } /* Blue */
-                            .topic-bubble:nth-child(3) { background: linear-gradient(to bottom, #48C9B0, #A2D9CE); color: #0B5345; } /* Green */
-                            .topic-bubble:nth-child(4) { background: linear-gradient(to bottom, #F5B041, #FAD7A0); color: #935116; } /* Orange */
-                            .topic-bubble:nth-child(5) { background: linear-gradient(to bottom, #EC7063, #F5B7B1); color: #7B241C; } /* Red */
-                            .topic-bubble:nth-child(6) { background: linear-gradient(to bottom, #F1948A, #FADBD8); color: #78281F; } /* Soft Red */
-                            .topic-bubble:nth-child(7) { background: linear-gradient(to bottom, #BB8FCE, #D7BDE2); color: #512E5F; } /* Light Purple */
-                            .topic-bubble:nth-child(8) { background: linear-gradient(to bottom, #D4E6F1, #EBF5FB); color: #154360; } /* Light Blue */
-                            .topic-bubble:nth-child(9) { background: linear-gradient(to bottom, #82E0AA, #D5F5E3); color: #186A3B; } /* Light Green */
-                            .topic-bubble:nth-child(10) { background: linear-gradient(to bottom, #F8C471, #FAE5D3); color: #935116; } /* Yellow-Orange */
-                        </style>
-                        """,
-                        unsafe_allow_html=True
-                    )
-
-                    topic_html = '<div class="circle-container">'
-                    for topic, _ in focused_topics:
-                        topic_html += f'<div class="topic-bubble">{topic}</div>'
-                    topic_html += "</div>"
-                    st.markdown(topic_html, unsafe_allow_html=True)
-
-            with st.spinner("Generating communication improvement suggestions..."):
-                container = st.container(border=True)  
-                with container:
-                    suggestions = get_gemini_suggestions(combined_text)
-
-                    st.subheader("📌 Communication Improvement Suggestions")
-                    st.write(suggestions)
+        # --- Suggestions/Analysis Comments ---
+        container = st.container(border=True)
+        with container:
+            st.subheader("📌 Suggestions & Analysis Comments")
+            suggestions = get_gemini_suggestions(combined_text)
+            st.write(suggestions)
