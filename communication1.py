@@ -300,54 +300,49 @@ if st.button("Analyze"):
         with st.spinner("Extracting focused topics..."):
             container = st.container(border=True)  
             with container:
-                focused_topics = extract_focused_topics(preprocess_text(combined_text), top_n=10)
+                focused_topics = extract_focused_topics(preprocess_text(combined_text), top_n=5)
                 st.subheader("🎯 Speaker's Focused Topics")
 
                 st.markdown(
-                    """
-                    <style>
-                        .circle-container {
-                            display: flex;
-                            flex-wrap: nowrap;
-                            gap: 20px;
-                            justify-content: flex-start;
-                            align-items: center;
-                            margin-top: 20px;
-                            overflow-x: auto;
-                            white-space: nowrap;
-                            padding: 10px;
-                        }
-                        .topic-bubble {
-                            min-width: 140px;
-                            height: 140px;
-                            font-weight: bold;
-                            font-size: 14px;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            text-align: center;
-                            border-radius: 50%;
-                            padding: 15px;
-                            word-wrap: break-word;
-                            overflow-wrap: break-word;
-                            white-space: normal;
-                            text-overflow: ellipsis;
-                        }
-                        /* Gradient background effect for 10 bubbles */
-                        .topic-bubble:nth-child(1) { background: linear-gradient(to bottom, #A569BD, #D2B4DE); color: #4A148C; } /* Purple */
-                        .topic-bubble:nth-child(2) { background: linear-gradient(to bottom, #5499C7, #AED6F1); color: #1A5276; } /* Blue */
-                        .topic-bubble:nth-child(3) { background: linear-gradient(to bottom, #48C9B0, #A2D9CE); color: #0B5345; } /* Green */
-                        .topic-bubble:nth-child(4) { background: linear-gradient(to bottom, #F5B041, #FAD7A0); color: #935116; } /* Orange */
-                        .topic-bubble:nth-child(5) { background: linear-gradient(to bottom, #EC7063, #F5B7B1); color: #7B241C; } /* Red */
-                        .topic-bubble:nth-child(6) { background: linear-gradient(to bottom, #F1948A, #FADBD8); color: #78281F; } /* Soft Red */
-                        .topic-bubble:nth-child(7) { background: linear-gradient(to bottom, #BB8FCE, #D7BDE2); color: #512E5F; } /* Light Purple */
-                        .topic-bubble:nth-child(8) { background: linear-gradient(to bottom, #D4E6F1, #EBF5FB); color: #154360; } /* Light Blue */
-                        .topic-bubble:nth-child(9) { background: linear-gradient(to bottom, #82E0AA, #D5F5E3); color: #186A3B; } /* Light Green */
-                        .topic-bubble:nth-child(10) { background: linear-gradient(to bottom, #F8C471, #FAE5D3); color: #935116; } /* Yellow-Orange */
-                    </style>
-                    """,
-                    unsafe_allow_html=True
-                )
+                        """
+                        <style>
+                            .circle-container {
+                                display: flex;
+                                flex-wrap: nowrap;
+                                gap: 20px;
+                                justify-content: space-evenly;
+                                align-items: center;
+                                margin-top: 20px;
+                                overflow-x: auto;
+                                white-space: nowrap;
+                                padding: 10px;
+                            }
+                            .topic-bubble {
+                                min-width: 140px;
+                                height: 140px;
+                                font-weight: bold;
+                                font-size: 14px;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                text-align: center;
+                                border-radius: 50%;
+                                padding: 15px;
+                                word-wrap: break-word;
+                                overflow-wrap: break-word;
+                                white-space: normal;
+                                text-overflow: ellipsis;
+                            }
+                            /* Gradient background effect for 5 bubbles */
+                            .topic-bubble:nth-child(1) { background: linear-gradient(to bottom, #A569BD, #D2B4DE); color: #4A148C; } /* Purple */
+                            .topic-bubble:nth-child(2) { background: linear-gradient(to bottom, #5499C7, #AED6F1); color: #1A5276; } /* Blue */
+                            .topic-bubble:nth-child(3) { background: linear-gradient(to bottom, #48C9B0, #A2D9CE); color: #0B5345; } /* Green */
+                            .topic-bubble:nth-child(4) { background: linear-gradient(to bottom, #F5B041, #FAD7A0); color: #935116; } /* Orange */
+                            .topic-bubble:nth-child(5) { background: linear-gradient(to bottom, #EC7063, #F5B7B1); color: #7B241C; } /* Red */
+                        </style>
+                        """,
+                        unsafe_allow_html=True
+                    )
 
 
             topic_html = '<div class="circle-container">'
